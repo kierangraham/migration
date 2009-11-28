@@ -1,7 +1,21 @@
 <?php defined('SYSPATH') OR die('No direct access allowed.');
-
+/**
+ * Database migration manager.
+ *
+ * @package		Migraion
+ * @author		Oliver Morgan
+ * @uses		Kohana 3.0 Database
+ * @copyright	(c) 2009 Oliver Morgan
+ * @license		MIT
+ */
 class Migration {
 	
+	/**
+	 * Creates a new migration manager for a model.
+	 *
+	 * @param   object	The model object.
+	 * @return  Migration	The appropriate migration driver.
+	 */
 	public static function factory($model)
 	{
 		// Get the migration driver
@@ -21,13 +35,26 @@ class Migration {
 		}
 	}
 	
+	// The model we're working with
 	protected $_model;
 	
+	/**
+	 * Creates the new migration object with the specified model.
+	 *
+	 * @param   object	The model object.
+	 */
 	protected function __construct($model)
 	{
+		// Sets the model.
 		$this->_model = $model;	
 	}
 	
+	/**
+	 * Creates a new migration manager for a model.
+	 *
+	 * @param   object	The model object.
+	 * @return  Migration	The appropriate migration driver.
+	 */
 	public function remove()
 	{
 		// Get the table name
@@ -49,6 +76,11 @@ class Migration {
 		return FALSE;
 	}
 	
+	/**
+	 * Syncs the model with the database.
+	 *
+	 * @return  void
+	 */
 	public function sync()
 	{
 		// Get the model's active database
@@ -118,6 +150,19 @@ class Migration {
 		$db->query(NULL, 'COMMIT');
 	}
 	
+	/**
+	 * Gets the database used by the model.
+	 *
+	 * @return  Database	The database object.
+	 */
 	abstract public function get_database();
+	
+	/**
+	 * Generates a normalised table object from the model.
+	 * 
+	 * @param	object	The model to generate a table object from.
+	 * @return  Database_Table	The table object.
+	 */
 	abstract public function get_table($model);
-}
+	
+} // END Migration
