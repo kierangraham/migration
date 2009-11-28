@@ -4,12 +4,16 @@ class Migration_Sprig extends Migration {
 	
 	public function get_database()
 	{
+		// Returns the database of the model
 		return $this->_model->db();
 	}
 	
 	public function get_table($model)
 	{
-		$table = new Database_Table($this->_database);
+		// Gets the table object with the database
+		$table = new Database_Table(NULL, $this->_database);
+		
+		// 
 		$table->name = $model->table();
 		
 		$fields = $model->fields();
