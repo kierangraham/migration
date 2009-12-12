@@ -62,10 +62,9 @@ abstract class Migration {
 	}
 	
 	/**
-	 * Creates a new migration manager for a model.
+	 * Drops the model's table from the database.
 	 *
-	 * @param   object	The model object.
-	 * @return  Migration	The appropriate migration driver.
+	 * @return	void
 	 */
 	public function remove()
 	{
@@ -98,7 +97,7 @@ abstract class Migration {
 				// Check if the column exists in the table
 				if(isset($columns[$column->name]))
 				{
-					if($force)
+					if($force === TRUE)
 					{
 						// If it does, then we alter it
 						DB::alter($table->name)
