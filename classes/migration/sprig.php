@@ -13,13 +13,16 @@ class Migration_Sprig extends Migration {
 	public function get_database()
 	{
 		// Returns the database of the model
-		return $this->_model->db();
+		return Database::instance($this->_model->db());
 	}
 	
 	public function get_table($model)
 	{
+		// Get the database object
+		$db = $this->get_database();
+		
 		// Gets the table object with the database
-		$table = new Database_Table(NULL, $this->_database);
+		$table = new Database_Table();
 		
 		// Set the name of the table
 		$table->name = $model->table();
@@ -27,30 +30,48 @@ class Migration_Sprig extends Migration {
 		// Get all the fields from the model
 		$fields = $model->fields();
 		
+		// Unique keys
+		$indexes = array();
+		
 		// Loop through each field in the model
 		foreach($fields as $field)
 		{
 			// We're only interested in fields within the database
 			if($field->in_db)
 			{
+				// If the field is unique, add it to the index
+				if($field->unique)
+				{
+					$indexes[$field->column] = $field->column;
+				}
+				
 				// Get the field's base class.
 				$class = get_class($field);
 				
 				// Switch through each class
 				switch($class)
 				{
-					// We're dealing with an auto-increment int field						
+					// We're dealing with an int field						
 					case 'Sprig_Field_Auto':
-						$column = new Database_Column_Int;
+					case 'Sprig_Field_Integer':
+					{
+						$column = Database_Column::factory($table, 'int', $field->column);
 						$column->is_auto_increment = TRUE;
-						$column->datatype = array('int');
 						break;
+					}
 						
 					// This is a boolean field
 					case 'Sprig_Field_Boolean':
-						$column = new Database_Column_Bool;
-						$column->datatype = 'boolean';
+					{
+						$column = Database_Column::factory($table, 'bool', $field->column);
 						break;
+					}
+					
+					case 'Sprig_Field_Timestamp':
+					{
+						$column = Database_Column::factory($table, 'timestamp', $field->column);
+						break;	
+					}
 						
 					// Basic string fields (varchar)
 					case 'Sprig_Field_Password':
@@ -59,41 +80,41 @@ class Migration_Sprig extends Migration {
 					case 'Sprig_Field_Country':
 					case 'Sprig_Field_Email':
 					case 'Sprig_Field_Char':
-						$column = new Database_Column_String;
-						$column->datatype = 'varchar';
-						$column->parameters = array(isset($column->max_length) ? $column->max_length : 45);
+					{
+						$column = Database_Column::factory($table, 'varchar', $field->column);
+						$column->parameters = isset($column->max_length) ? $column->max_length : 45;
 						break;
-						
-					// Basic floating point field
-					case 'Sprig_Field_Float':
-						$column = new Database_Column_Float;
-						$column->datatype = 'float';
-						break;
-						
-					// Integer field
-					case 'Sprig_Field_Integer':
-						$column = new Database_Column_Int;
-						$column->datatype = 'int';
-						break;
+					}					
 						
 					case 'Sprig_Field_Text':
-						$column = new Database_Column_String;
-						$column->parameters = 65535;
-						$column->datatype = 'varchar';
+					{
+						$column = Database_Column::factory($table, 'blob', $field->column);
 						break;
+					}
+					
 				}
 				
 				// Set the other basic properties.
-				$column->is_unique = $field->unique;
 				$column->default = $field->default;
-				$column->is_nullable = $field->null;
-				$column->is_primary = $field->primary;
+				$column->is_nullable = (bool) $field->null;
 				$column->name = $field->column;
 				
 				// Add the column to the table.
 				$table->add_column($column);
 			}
 		}
+		
+		// Get the primary keys
+		$keys = $model->pk();
+		
+		// If there is just one key, still add it to an array
+		if ( ! is_array($keys))
+		{
+			$keys = array($keys);
+		}
+		
+		// Add the primary keys
+		$table->add_constraint(new Database_Constraint_Primary($keys));
 		
 		// Return the table.
 		return $table;

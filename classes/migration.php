@@ -8,7 +8,7 @@
  * @copyright	(c) 2009 Oliver Morgan
  * @license		MIT
  */
-class Migration {
+abstract class Migration {
 	
 	/**
 	 * Creates a new migration manager for a model.
@@ -16,10 +16,16 @@ class Migration {
 	 * @param   object	The model object.
 	 * @return  Migration	The appropriate migration driver.
 	 */
-	public static function factory($model)
+	public static function factory($model, $type = NULL)
 	{
+		// If the user has not specified a type, we'll take a guess.
+		if($type === NULL)
+		{
+			$type = get_parent_class($model);
+		}
+		
 		// Get the migration driver
-		$class = 'Migration_'.ucfirst(get_parent_class($model));
+		$class = 'Migration_'.ucfirst($type);
 		
 		// Check if the class exists
 		if(class_exists($class))
@@ -38,6 +44,9 @@ class Migration {
 	// The model we're working with
 	protected $_model;
 	
+	// The table object generated from the model
+	protected $_table;
+	
 	/**
 	 * Creates the new migration object with the specified model.
 	 *
@@ -46,7 +55,10 @@ class Migration {
 	protected function __construct($model)
 	{
 		// Sets the model.
-		$this->_model = $model;	
+		$this->_model = $model;
+		
+		// Set the table object generated from the model.
+		$this->_table = $this->get_table($model);
 	}
 	
 	/**
@@ -57,23 +69,8 @@ class Migration {
 	 */
 	public function remove()
 	{
-		// Get the table name
-		$name = $this->get_table()->name;
-		
-		// Get any associated tables from the database
-		$table =  $db->get_tables(TRUE, $name);
-		
-		// If it exists drop it
-		if (is_object($table))
-		{
-			$table->drop();
-			
-			// It was dropped
-			return TRUE;
-		}
-		
-		// No table was found with that name
-		return FALSE;
+		DB::drop('table', $this->_table->name)
+			->execute($this->_table->database);
 	}
 	
 	/**
@@ -81,73 +78,56 @@ class Migration {
 	 *
 	 * @return  void
 	 */
-	public function sync()
+	public function sync($force = FALSE)
 	{
 		// Get the model's active database
 		$db = $this->get_database();
 		
-		// Start the transaction
-		$db->query(NULL, 'BEGIN');
+		// Get a list of tables with the same name as the model
+		$table = Database_Table::instance($this->_table->name, $db);
 		
-		try
+		// We have a hit, time to update it where necessary.
+		if ($table)
 		{
-			// Get a table object from the model
-			$table = $this->get_table();
+			// Get a list of columns from the database table
+			$columns = $table->columns();
 			
-			// Get a list of tables with the same name as the model
-			$tables = $db->get_tables(TRUE, $table->name);
-			
-			// We have a hit, time to update it where necessary.
-			if (is_object($tables))
+			// Loop through each column within the model
+			foreach($this->_table->columns() as $name => $column)
 			{
-				// Array of columns that do not exist in the model
-				$columns = $table->columns(TRUE);
-				
-				// Loop through each column within the model
-				foreach($table->columns(TRUE) as $name => $column)
+				// Check if the column exists in the table
+				if(isset($columns[$column->name]))
 				{
-					// Remove the column as it exists in the model
-					unset($columns[$column->name]);
-					
-					// Check if the column exists in the table
-					if(count($tables->columns(TRUE, $name)) == 1)
+					if($force)
 					{
 						// If it does, then we alter it
-						DB::alter($tables)
-							->modify($column, $name)
-							->execute();
+						DB::alter($table->name)
+							->modify($column->compile())
+							->execute($table->database);
 					}
-					else
-					{
-						// Otherwise we create it
-						$tables->add_column($column);
-					}
+				}
+				else
+				{
+					// Otherwise we create it
+					$table->add_column($column);
 				}
 				
-				foreach($columns as $column)
-				{
-					// Drop any redundant columns
-					DB::drop($column)
-						->execute();
-				}
+				// We have processed the column and it exists in the model.
+				unset($columns[$column->name]);
 			}
-			else
-			{
-				// There was no existing table, so just create it
-				$table->create();
-			}
-		}
-		catch( Exception $e)
-		{
-			// If an error occurs then rollback the transaction
-			$db->query(NULL, 'ROLLBACK');
 			
-			// And throw the error to be caught elsewhere
-			throw $e;
+			// Loop through anything we have left
+			foreach($columns as $name => $column)
+			{
+				// Drop any redundant columns
+				$column->drop();
+			}
 		}
-		
-		// Everything completed according to plan, commit the transaction
-		$db->query(NULL, 'COMMIT');
+		else
+		{
+			// There was no existing table, so just create it
+			$this->_table->create();
+		}
 	}
 	
 	/**
