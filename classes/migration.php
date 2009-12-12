@@ -68,8 +68,12 @@ abstract class Migration {
 	 */
 	public function remove()
 	{
+		// Drop the table
 		DB::drop('table', $this->_table->name)
 			->execute($this->_table->database);
+			
+		// And return the current object for chaining
+		return $this;
 	}
 	
 	/**
@@ -131,6 +135,9 @@ abstract class Migration {
 			// There was no existing table, so just create it
 			$this->_table->create();
 		}
+		
+		// And return the current object for chaining
+		return $this;
 	}
 	
 	/**
