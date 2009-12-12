@@ -2,9 +2,9 @@
 /**
  * Database migration manager.
  *
- * @package		Migraion
+ * @package		Migration
  * @author		Oliver Morgan
- * @uses		Kohana 3.0 Database
+ * @uses		DBForge
  * @copyright	(c) 2009 Oliver Morgan
  * @license		MIT
  */
