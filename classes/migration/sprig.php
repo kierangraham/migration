@@ -51,15 +51,19 @@ class Migration_Sprig extends Migration {
 				// Switch through each class
 				switch($class)
 				{
-					// We're dealing with an int field						
+					// We're dealing with an auto-incremented field
 					case 'Sprig_Field_Auto':
+					{
+						$column->is_auto_increment = TRUE;
+					}
+					
+					// We're dealing with an integer field or an auto-increment
 					case 'Sprig_Field_Integer':
 					{
 						$column = Database_Column::factory($table, 'int', $field->column);
-						$column->is_auto_increment = TRUE;
 						break;
 					}
-						
+					
 					// This is a boolean field
 					case 'Sprig_Field_Boolean':
 					{
