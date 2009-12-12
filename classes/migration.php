@@ -115,11 +115,15 @@ abstract class Migration {
 				unset($columns[$column->name]);
 			}
 			
-			// Loop through anything we have left
-			foreach($columns as $name => $column)
-			{
-				// Drop any redundant columns
-				$column->drop();
+			// Do not delete columns if the operaction isnt forced.
+			if($force === TRUE)
+			{	
+				// Loop through anything we have left
+				foreach($columns as $name => $column)
+				{
+					// Drop any redundant columns
+					$column->drop();
+				}
 			}
 		}
 		else
