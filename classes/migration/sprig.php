@@ -42,7 +42,7 @@ class Migration_Sprig extends Migration {
 				// If the field is unique, add it to the index
 				if($field->unique)
 				{
-					$indexes[$field->column] = $field->column;
+					$indexes[$field->column] = $field;
 				}
 				
 				// Get the field's base class.
@@ -54,7 +54,9 @@ class Migration_Sprig extends Migration {
 					// We're dealing with an auto-incremented field
 					case 'Sprig_Field_Auto':
 					{
+						$column = Database_Column::factory($table, 'int', $field->column);
 						$column->is_auto_increment = TRUE;
+						break;
 					}
 					
 					// We're dealing with an integer field or an auto-increment
@@ -119,6 +121,17 @@ class Migration_Sprig extends Migration {
 		
 		// Add the primary keys
 		$table->add_constraint(new Database_Constraint_Primary($keys));
+		
+		// Loop through each key index
+		foreach($indexes as $name => $field)
+		{
+			// If the field isnt already a primary key
+			if ( ! $field->primary)
+			{
+				// Add it as a unique constraint
+				$table->add_constraint(new Database_Constraint_Unique($name));
+			}
+		}
 		
 		// Return the table.
 		return $table;
