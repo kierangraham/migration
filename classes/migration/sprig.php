@@ -45,59 +45,45 @@ class Migration_Sprig extends Migration {
 					$indexes[$field->column] = $field;
 				}
 				
-				// Get the field's base class.
-				$class = get_class($field);
-				
-				// Switch through each class
-				switch($class)
+				// Check if the field implaments the migratable interface
+				if ($field instanceof Model_Migratable)
 				{
-					// We're dealing with an auto-incremented field
-					case 'Sprig_Field_Auto':
+					// If so, it's going to generate a column itself
+					$column = $field->get_column();	
+				}
+				
+				// Check if we're dealing with a character based field
+				elseif ($field instanceof Sprig_Field_Char)
+				{
+					// Check if our character based field is a text field
+					if($field instanceof Sprig_Field_Text)
 					{
-						$column = Database_Column::factory($table, 'int', $field->column);
-						$column->is_auto_increment = TRUE;
-						break;
+						// If so, we'll give it a blob datatype to be platform independent
+						$column = Database_Column::factory($table, 'blob', $field->column);
 					}
-					
-					// We're dealing with an integer field or an auto-increment
-					case 'Sprig_Field_Integer':
+					else
 					{
-						$column = Database_Column::factory($table, 'int', $field->column);
-						break;
-					}
-					
-					// This is a boolean field
-					case 'Sprig_Field_Boolean':
-					{
-						$column = Database_Column::factory($table, 'bool', $field->column);
-						break;
-					}
-					
-					case 'Sprig_Field_Timestamp':
-					{
-						$column = Database_Column::factory($table, 'timestamp', $field->column);
-						break;	
-					}
-						
-					// Basic string fields (varchar)
-					case 'Sprig_Field_Password':
-					case 'Sprig_Field_Image':
-					case 'Sprig_Field_Enum':
-					case 'Sprig_Field_Country':
-					case 'Sprig_Field_Email':
-					case 'Sprig_Field_Char':
-					{
+						// Otherwise we'll just give a varchar witha  default length of 45
 						$column = Database_Column::factory($table, 'varchar', $field->column);
 						$column->parameters = isset($column->max_length) ? $column->max_length : 45;
-						break;
-					}					
-						
-					case 'Sprig_Field_Text':
-					{
-						$column = Database_Column::factory($table, 'blob', $field->column);
-						break;
 					}
+				}
+				
+				// Check if we're dealing with an integer
+				elseif ($field instanceof Sprig_Field_Integer)
+				{
+					// If so, give it the standard int datatype
+					$column = Database_Column::factory($table, 'int', $field->column);
 					
+					// Set the auto_increment value
+					$column->is_auto_increment = $field instanceof Sprig_Field_Auto;
+				}
+				
+				// Check if we're dealing with a boolean field
+				elseif ($field instanceof Sprig_Field_Boolean)
+				{
+					// If so, just use the standard bool value
+					$column = Database_Column::factory($table, 'bool', $field->column);
 				}
 				
 				// Set the other basic properties.
