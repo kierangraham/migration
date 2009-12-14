@@ -16,14 +16,8 @@ abstract class Migration {
 	 * @param   object	The model object.
 	 * @return  Migration	The appropriate migration driver.
 	 */
-	public static function factory($model, $type = NULL)
-	{
-		// If the user has not specified a type, we'll take a guess.
-		if($type === NULL)
-		{
-			$type = get_parent_class($model);
-		}
-		
+	public static function factory($model, $type)
+	{	
 		// Get the migration driver
 		$class = 'Migration_'.ucfirst($type);
 		
@@ -55,7 +49,7 @@ abstract class Migration {
 	protected function __construct($model)
 	{
 		// Sets the model.
-		$this->_model = $model;
+		$this->_model = $this->_get_model($model);
 		
 		// Set the table object generated from the model.
 		$this->_table = $this->get_table($model);
@@ -84,7 +78,7 @@ abstract class Migration {
 	public function sync($force = FALSE)
 	{
 		// Get the model's active database
-		$db = $this->get_database();
+		$db = $this->_get_database();
 		
 		// Get a list of tables with the same name as the model
 		$table = Database_Table::instance($this->_table->name, $db);
@@ -141,11 +135,18 @@ abstract class Migration {
 	}
 	
 	/**
+	 * Retrieves the model object from the given model name.
+	 *
+	 * @return	object	The model object.
+	 */
+	abstract protected function _get_model($name);
+	
+	/**
 	 * Gets the database used by the model.
 	 *
 	 * @return  Database	The database object.
 	 */
-	abstract public function get_database();
+	abstract protected function _get_database();
 	
 	/**
 	 * Generates a normalised table object from the model.

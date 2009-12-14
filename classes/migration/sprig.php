@@ -10,7 +10,29 @@
  */
 class Migration_Sprig extends Migration {
 	
-	public function get_database()
+	protected function _get_model($name)
+	{
+		// If the name is given as an object, this may not be necessary
+		if (is_object($name))
+		{
+			// Check first if the model is valid
+			if ( ! $name instanceof Sprig)
+			{
+				// If not throw an error
+				throw new Kohana_Exception('Model :mdl is not a valid Sprig model.', array(
+					':mdl'	=> (string) $name
+				));
+			}
+			
+			// If it is, just return it as is
+			return $name;
+		}
+		
+		// Otherwise just let sprig deal with it
+		return Sprig::factory($name);
+	}
+	
+	protected function _get_database()
 	{
 		// Returns the database of the model
 		return Database::instance($this->_model->db());
@@ -19,7 +41,7 @@ class Migration_Sprig extends Migration {
 	public function get_table($model)
 	{
 		// Get the database object
-		$db = $this->get_database();
+		$db = $this->_get_database();
 		
 		// Gets the table object with the database
 		$table = new Database_Table();
