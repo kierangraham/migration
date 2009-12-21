@@ -1,4 +1,4 @@
-<?php defined('SYSPATH') or die('No direct script access.');
+<?php defined('SYSPATH') OR die('No direct access allowed.');
 /**
  * Migratable model interface.
  *
@@ -10,11 +10,6 @@
  */
 interface Model_Migratable {
 	
-	/**
-	 * Returns a column object for the field.
-	 * 
-	 * @return	Database_Column	The column object.
-	 */
-	public function get_column();
+	public function get_columns();
 	
-}
+} // End Model_Migratable

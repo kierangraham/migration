@@ -10,138 +10,157 @@
  */
 class Migration_Sprig extends Migration {
 	
-	protected function _get_model($name)
+	/**
+	 * The sprig model object.
+	 * 
+	 * @var	Sprig
+	 */
+	protected $_model;
+	
+	protected function _get_model($model)
 	{
-		// If the name is given as an object, this may not be necessary
-		if (is_object($name))
+		if (is_string($model))
 		{
-			// Check first if the model is valid
-			if ( ! $name instanceof Sprig)
+			return Sprig::factory($model);
+		}
+		elseif ($model instanceof Sprig)
+		{
+			return $model;
+		}
+		else
+		{
+			throw new Kohana_Exception('Invalid model :model given to sprig driver.', array(
+				':model'	=> (string) $model
+			));
+		}
+	}
+	
+	protected function _get_tables()
+	{
+		$tables = array();
+		
+		$table = new Database_Table($this->_db);
+		$table->name = $this->_model->table();
+		
+		$model_pks = is_array($this->_model->pk()) ? $this->_model->pk() : array($this->_model->pk());
+		
+		foreach ($this->_model->fields() as $field)
+		{
+			if ($field->in_db)
 			{
-				// If not throw an error
-				throw new Kohana_Exception('Model :mdl is not a valid Sprig model.', array(
-					':mdl'	=> (string) $name
-				));
+				if ($field->unique)
+				{
+					$table->add_constraint(
+						new Database_Constraint_Unique($field->column)
+					);
+				}
+				
+				$column = current($this->_get_columns($field, $table));
+				
+				$table->add_column($column);
 			}
-			
-			// If it is, just return it as is
-			return $name;
+			else
+			{
+				if ($field instanceof Sprig_Field_ManyToMany)
+				{
+					$pivot = new Database_Table($this->_db);
+					$pivot->name = $field->through;
+						
+					$pivot->add_column($this->_get_columns(
+						new Sprig_Field_BelongsTo(array(
+							'model'	=> $field->model
+					)), $pivot ));
+					
+					$pivot->add_column($this->_get_columns(
+						new Sprig_Field_BelongsTo(array(
+							'model'	=> inflector::singular($this->_model->table())
+					)), $pivot ));
+					
+					$pivot->add_constraint(new Database_Constraint_Primary(
+						array_keys($pivot->columns())
+					));
+						
+					$tables[] = $pivot;
+				}
+			}
 		}
 		
-		// Otherwise just let sprig deal with it
-		return Sprig::factory($name);
+		$table->add_constraint(
+			new Database_Constraint_Primary($model_pks)
+		);
+		
+		$tables[] = $table;
+		
+		return $tables;
 	}
 	
 	protected function _get_database()
 	{
-		// Returns the database of the model
 		return Database::instance($this->_model->db());
 	}
 	
-	public function get_table($model)
+	/**
+	 * Gets the database columns associated with the field.
+	 * 
+	 * @param	Sprig_Field	The sprig field.
+	 * @return	array	The list of columns.
+	 */
+	private function _get_columns( Sprig_Field $field, Database_Table $table)
 	{
-		// Get the database object
-		$db = $this->_get_database();
-		
-		// Gets the table object with the database
-		$table = new Database_Table();
-		
-		// Set the name of the table
-		$table->name = $model->table();
-		
-		// Get all the fields from the model
-		$fields = $model->fields();
-		
-		// Unique keys
-		$indexes = array();
-		
-		// Loop through each field in the model
-		foreach($fields as $field)
+		if ($field instanceof Sprig_Field_BelongsTo)
 		{
-			// We're only interested in fields within the database
-			if($field->in_db)
+			$references = $this->_get_model($field->model);
+			
+			$pks = is_array($references->pk()) ? $references->pk() : array($references->pk());
+			
+			$columns = array();
+			
+			foreach($pks as $pk)
 			{
-				// If the field is unique, add it to the index
-				if($field->unique)
+				$foreign_field = $references->field($pk);
+				
+				$column = current($this->_get_columns($foreign_field, $table));
+				
+				$column->name = Inflector::singular($references->table()).'_'.$pk;
+				
+				if ($column instanceof Database_Column_Int)
 				{
-					$indexes[$field->column] = $field;
+					$column->is_auto_increment = FALSE;
 				}
 				
-				// Check if the field implaments the migratable interface
-				if ($field instanceof Model_Migratable)
-				{
-					// If so, it's going to generate a column itself
-					$column = $field->get_column();	
-				}
-				
-				// Check if we're dealing with a character based field
-				elseif ($field instanceof Sprig_Field_Char)
-				{
-					// Check if our character based field is a text field
-					if($field instanceof Sprig_Field_Text)
-					{
-						// If so, we'll give it a blob datatype to be platform independent
-						$column = Database_Column::factory($table, 'blob', $field->column);
-					}
-					else
-					{
-						// Otherwise we'll just give a varchar witha  default length of 45
-						$column = Database_Column::factory($table, 'varchar', $field->column);
-						$column->parameters = isset($column->max_length) ? $column->max_length : 45;
-					}
-				}
-				
-				// Check if we're dealing with an integer
-				elseif ($field instanceof Sprig_Field_Integer)
-				{
-					// If so, give it the standard int datatype
-					$column = Database_Column::factory($table, 'int', $field->column);
-					
-					// Set the auto_increment value
-					$column->is_auto_increment = $field instanceof Sprig_Field_Auto;
-				}
-				
-				// Check if we're dealing with a boolean field
-				elseif ($field instanceof Sprig_Field_Boolean)
-				{
-					// If so, just use the standard bool value
-					$column = Database_Column::factory($table, 'bool', $field->column);
-				}
-				
-				// Set the other basic properties.
-				$column->default = $field->default;
-				$column->is_nullable = (bool) $field->null;
-				$column->name = $field->column;
-				
-				// Add the column to the table.
-				$table->add_column($column);
+				$columns[] = $column;
+			}
+			
+			return $columns;
+		}
+		elseif ($field instanceof Sprig_Field_Char)
+		{
+			if ($field instanceof Sprig_Field_Text)
+			{
+				$column = Database_Column::factory($table, 'blob', $field->column);
+			}
+			else
+			{
+				$column = Database_Column::factory($table, 'varchar', $field->column);
+				$column->parameters = isset($column->max_length) ? $column->max_length : 45;
 			}
 		}
-		
-		// Get the primary keys
-		$keys = $model->pk();
-		
-		// If there is just one key, still add it to an array
-		if ( ! is_array($keys))
+		elseif ($field instanceof Sprig_Field_Integer)
 		{
-			$keys = array($keys);
+			$column = Database_Column::factory($table, 'int', $field->column);
+			
+			$column->is_auto_increment = $field instanceof Sprig_Field_Auto;
+		}
+		elseif ($field instanceof Sprig_Field_Boolean)
+		{
+			$column = Database_Column::factory($table, 'bool', $field->column);
 		}
 		
-		// Add the primary keys
-		$table->add_constraint(new Database_Constraint_Primary($keys));
+		$column->default = $field->default;
+		$column->is_nullable = $field->null;
+		$column->name = $field->column;
 		
-		// Loop through each key index
-		foreach($indexes as $name => $field)
-		{
-			// If the field isnt already a primary key
-			if ( ! $field->primary)
-			{
-				// Add it as a unique constraint
-				$table->add_constraint(new Database_Constraint_Unique($name));
-			}
-		}
-		
-		// Return the table.
-		return $table;
+		return array($column);
 	}
-}
+
+} // End Migration_Sprig

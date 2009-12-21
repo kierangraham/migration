@@ -74,8 +74,9 @@ Below is a list of requirements, if you understand the migration process, these 
 Your driver must extend the migration class, containing some abstract methods that you have to implament within your driver. Below is a basic setup of a class which would be located in `migration/driver.php`
 
 	class Migration_Driver extends Migration {
-
-		public function get_database() { }
+		
+		protected function _get_model($name) { }
+		protected function _get_database() { }
 		public function get_table($model) { }
 
 	} // END Migration_Driver
@@ -84,6 +85,8 @@ Your driver must extend the migration class, containing some abstract methods th
 
 These are abstract methods defined in the migration class which you must extend in your driver.
 
-* `get_database()` This method is important for extracting the database associated with the model. If your model doesnt support this, then just return `Database::instance();`.
+* `_get_model($name` This method returns the model object from a given identifier or name.
+
+* `_get_database()` This method is important for extracting the database associated with the model. If your model doesnt support this, then just return `Database::instance();`.
 
 * `get_table($model)` This is the main method, which involves converting your model object into a Database_Table object. For further information on the Database_Table API, see the DBForge documentation. Also see the sprig driver for an example.

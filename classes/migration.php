@@ -1,6 +1,6 @@
 <?php defined('SYSPATH') OR die('No direct access allowed.');
 /**
- * Database migration manager.
+ * Sprig migration abstract class.
  *
  * @package		Migration
  * @author		Oliver Morgan
@@ -11,149 +11,175 @@
 abstract class Migration {
 	
 	/**
-	 * Creates a new migration manager for a model.
-	 *
-	 * @param   object	The model object.
-	 * @return  Migration	The appropriate migration driver.
+	 * The array of tables associated with the model.
+	 * 
+	 * @param	mixed	The model identifier.
+	 * @param	string	The migration driver.
 	 */
-	public static function factory($model, $type)
-	{	
-		// Get the migration driver
-		$class = 'Migration_'.ucfirst($type);
-		
-		// Check if the class exists
-		if(class_exists($class))
+	public static function factory($model, $driver = NULL)
+	{
+		if ($driver === NULL)
 		{
-			// Return a new instance of the driver interface
+			if ((is_object($model) OR $model = Model::factory($model)) AND $model instanceof Model_Migratable)
+			{
+				return new Migration_Interface($model);
+			}
+			else
+			{
+				throw new Kohana_Exception('Migration models given without a supported driver must implament the migratable interface.');
+			}
+		}
+		
+		$class = 'Migration_'.ucfirst($driver);
+		
+		if (class_exists($class))
+		{
 			return new $class($model);
 		}
-		else
-		{
-			// The driver could not be found, throw an error
-			throw new Kohana_Exception('Model mdl is not supported.', 
-				array('mdl' => $class));
-		}
+		
+		throw new Kohana_Exception('Migration driver :driver could not be found.', array(
+			':driver'	=> $driver
+		));
 	}
 	
-	// The model we're working with
-	protected $_model;
-	
-	// The table object generated from the model
-	protected $_table;
+	/**
+	 * The database object
+	 * 
+	 * @var	Database
+	 */
+	protected $_db;
 	
 	/**
-	 * Creates the new migration object with the specified model.
-	 *
-	 * @param   object	The model object.
+	 * The array of tables associated with the model.
+	 * 
+	 * @var	array
+	 */
+	protected $_tables;
+	
+	/**
+	 * The model object.
+	 * 
+	 * @var	object
+	 */
+	protected $_model;
+	
+	/**
+	 * The migration construct.
+	 * 
+	 * @param	mixed	An identifier used by the migration driver to get the model object.
 	 */
 	protected function __construct($model)
 	{
-		// Sets the model.
 		$this->_model = $this->_get_model($model);
 		
-		// Set the table object generated from the model.
-		$this->_table = $this->get_table($model);
+		$this->_db = $this->_get_database();
+		
+		$this->_tables = $this->_get_tables();
 	}
 	
 	/**
-	 * Drops the model's table from the database.
-	 *
+	 * Removed existing tables and 
+	 * 
+	 * @param	array	The options array given to the table(s) to compile with.
+	 * @return void	
+	 */
+	public function rebuild( array $options = array())
+	{
+		$this->remove()->sync($options);
+	}
+	
+	/**
+	 * Remove all tables associated with the model if they already exist in the database.
+	 * 
 	 * @return	void
 	 */
 	public function remove()
 	{
-		// Drop the table
-		DB::drop('table', $this->_table->name)
-			->execute($this->_table->database);
-			
-		// And return the current object for chaining
+		foreach ($this->_tables as $table)
+		{
+			if($table = Database_Table::instance($table->name, $table->database))
+			{
+				$table->drop();
+			}
+		}
+		
 		return $this;
 	}
 	
 	/**
-	 * Syncs the model with the database.
-	 *
-	 * @return  void
+	 * Syncs the model with the database schema.
+	 * 
+	 * @param	array	The options array given to the table(s) to compile with.
+	 * @return	void
 	 */
-	public function sync($force = FALSE)
+	public function sync( array $options = array())
 	{
-		// Get the model's active database
-		$db = $this->_get_database();
-		
-		// Get a list of tables with the same name as the model
-		$table = Database_Table::instance($this->_table->name, $db);
-		
-		// We have a hit, time to update it where necessary.
-		if ($table)
+		foreach ($this->_tables as $table)
 		{
-			// Get a list of columns from the database table
-			$columns = $table->columns();
+			$tables = $this->_db->list_tables($table->name);
 			
-			// Loop through each column within the model
-			foreach($this->_table->columns() as $name => $column)
+			while (list($key, $value) = each($options))
 			{
-				// Check if the column exists in the table
-				if(isset($columns[$column->name]))
+				$table->add_option($key, $value);
+			}
+			
+			if (empty($tables))
+			{
+				$table->create();
+			}
+			else
+			{
+				$columns = $this->_db->list_columns($table->name);
+				
+				foreach ($table->columns() as $name => $column)
 				{
-					if($force === TRUE)
+					if (isset($columns[$column->name]))
 					{
-						// If it does, then we alter it
 						DB::alter($table->name)
 							->modify($column->compile())
-							->execute($table->database);
+							->execute($this->_db);
 					}
-				}
-				else
-				{
-					// Otherwise we create it
-					$table->add_column($column);
+					else
+					{
+						DB::alter($table->name)
+							->add($column->compile())
+							->execute($this->_db);
+					}
+					
+					unset($columns[$name]);
 				}
 				
-				// We have processed the column and it exists in the model.
-				unset($columns[$column->name]);
-			}
-			
-			// Do not delete columns if the operaction isnt forced.
-			if($force === TRUE)
-			{	
-				// Loop through anything we have left
 				foreach($columns as $name => $column)
 				{
-					// Drop any redundant columns
-					$column->drop();
+					DB::alter($table->name)
+						->drop($name);
 				}
 			}
 		}
-		else
-		{
-			// There was no existing table, so just create it
-			$this->_table->create();
-		}
 		
-		// And return the current object for chaining
 		return $this;
 	}
 	
 	/**
-	 * Retrieves the model object from the given model name.
-	 *
+	 * Gets the model object associated with the model identifier.
+	 * 
+	 * @param	array	The options array given to the table(s).
 	 * @return	object	The model object.
 	 */
-	abstract protected function _get_model($name);
+	abstract protected function _get_model($model);
 	
 	/**
-	 * Gets the database used by the model.
-	 *
-	 * @return  Database	The database object.
+	 * Returns the database object used by the model.
+	 * 
+	 * @return	Database	The database object.
 	 */
 	abstract protected function _get_database();
 	
 	/**
-	 * Generates a normalised table object from the model.
+	 * Gets the array of tables generated by the model.
 	 * 
-	 * @param	object	The model to generate a table object from.
-	 * @return  Database_Table	The table object.
+	 * @return	array	The list of tables.
 	 */
-	abstract public function get_table($model);
+	abstract protected function _get_tables();
 	
-} // END Migration
+} // End Migration
