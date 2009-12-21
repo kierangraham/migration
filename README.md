@@ -25,43 +25,55 @@ To use the sprig driver, simply specify the type as 'sprig' and register the mod
 ### Quick Start
 The migration module is meant to be an easy way to sync models with database schemas, below is a quick start guide of how to use it. I will be using sprig in my example.
 
-	$migration = Migration::factory(Sprig::factory('user'), 'sprig');
+	$migration = Migration::factory('user', 'sprig');
 
 Will create a new instance of a migration object using the sprig driver.
 
 	$migration->sync();
 
-That code will sync the model, without forcing column alterations. That means that if the column exists in the database already, the migration manager will not attempt to modify / update it. Due to the limitations in introspection techniques, it's impossible to compare columns from the database directly with models to determine if they need updating or not. Modifying a column will not cause you to loose data.
-
-	$migration->sync(TRUE);
-
-In contrast to the code above, this will sync the model, forcing updates to columns that already exist in the database.
+The above code will sync the model with the database schema, creating the table if it doesnt exist, otherwise adding, modifying and dropping columns where appropriate.
 
 	$migration->remove();
 
-This will drop the table associated with the model. This may be removed in versions to come as its simply an alias of the `DB::Drop()` method in DBForge.
+This will drop all tables associated with the model.
 
-### Advanced Methods
+	$migration->rebuild();
 
-Certainly in development its useful to have your models kept in sync with the database the whole time. Allowing you to control your database's schema using models. To do this, add the following bit of code to your boostrap after all the modules are loaded.
+This will remove the table if it exists then create it again. As the migration module currently doesnt support constraints this is a useful method for adding new constraints to the table schema.
 
-	// Find every model in your application
-	foreach(Kohana::list_files('classes/model') as $uri => $path)
-	{
-		// Extract the class name from the relative path
-		$class = ucfirst(str_replace(array('classes/model', DIRECTORY_SEPARATOR, EXT), '', $uri));
-	
-		// Use the migration module to sync model
-		Migration::factory(Sprig::factory($class), 'sprig')->sync(TRUE);
-	}
+Note its simply an alias for:
 
-This assumes that all your models use sprig as your model engine driver. For other drivers, simply change the `Sprig::factory()` and `'sprig'` parameters.
+	$migration->remove()->sync();
+
+As all methods are chainable.
 
 ## Creating Drivers
 
 Creating drivers for the migration manager is easy. However you must fit a certain criteria to allow your model engine to be effective.
+ 
+The migration module also has added support for migratable models that manage migrations on an individual basis using the migratable interface. This is useful if you want to hardcode table objects processed by the migration module. Obviously this would require you to do it for every model you want to use it on
 
-### Requirements
+### The Interface Method
+Below is a basic example of how the migratable interface would be setup using an ORM model. Obviously the ORM isn't designed for database modelling, and so a driver cannot be created for it. The interface method can be used instead.
+
+	class Model_MyModel extends ORM implements Model_Migratable 	{
+		
+		public function get_database() { }
+
+		public function get_tables() { }
+		
+	}
+
+#### Abstract Methods
+These are methods you will need to have working in your model.
+
+`get_database()` This method will return a Database object of the database used by the model.
+
+`get_tables()` Returns an array of tables modelled by the model, if the table is part of a ManyToMany relationship then it would need to return both the pivot table and itself.
+
+### The Driver Method
+
+#### Requirements
 
 Below is a list of requirements, if you understand the migration process, these will seem trivial. Essencially your model must model the database rather than the other way round. Which is why ORM would never work for this process.
 
@@ -69,7 +81,7 @@ Below is a list of requirements, if you understand the migration process, these 
 * Your model must store records of primary / composite keys.
 * Your model must be able to provide details of every field contained within it.
 
-### Template Class
+#### Template Driver Class
 
 Your driver must extend the migration class, containing some abstract methods that you have to implament within your driver. Below is a basic setup of a class which would be located in `migration/driver.php`
 
@@ -77,16 +89,16 @@ Your driver must extend the migration class, containing some abstract methods th
 		
 		protected function _get_model($name) { }
 		protected function _get_database() { }
-		public function get_table($model) { }
+		protected function _get_tables() { }
 
-	} // END Migration_Driver
+	} // End Migration_Driver
 
-### Abstract Methods
+##### Abstract Methods
 
 These are abstract methods defined in the migration class which you must extend in your driver.
 
-* `_get_model($name` This method returns the model object from a given identifier or name.
+* `_get_model($model)` This method returns the model object from a given identifier or name. It would be wise to check if the model parameter is already given as an object.
 
 * `_get_database()` This method is important for extracting the database associated with the model. If your model doesnt support this, then just return `Database::instance();`.
 
-* `get_table($model)` This is the main method, which involves converting your model object into a Database_Table object. For further information on the Database_Table API, see the DBForge documentation. Also see the sprig driver for an example.
+* `_get_tables()` This is the main method, which involves converting your model object into an array of Database_Table objects. For further information on the Database_Table API, see the DBForge documentation. Also see the sprig driver for an example.

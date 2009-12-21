@@ -10,6 +10,18 @@
  */
 interface Model_Migratable {
 	
-	public function get_columns();
+	/**
+	 * Gets the database object.
+	 * 
+	 * @return Database
+	 */
+	public function get_database();
+	
+	/**
+	 * Generates and returns the list of tables to be migrated.
+	 * 
+	 * @return array
+	 */
+	public function get_tables();
 	
 } // End Model_Migratable
