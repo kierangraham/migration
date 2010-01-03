@@ -22,6 +22,11 @@ I have included a native sprig driver that allows you to sync/remove sprig model
 
 To use the sprig driver, simply specify the type as 'sprig' and register the module as a sprig model object.
 
+### Interfaced
+If you've used the migratable interface, then your model will not need a driver to extract the database modelling information out of it.
+
+To use this, simply don't specify a type at all. 	`Migration::factory('my_model');`
+
 ### Quick Start
 The migration module is meant to be an easy way to sync models with database schemas, below is a quick start guide of how to use it. I will be using sprig in my example.
 
