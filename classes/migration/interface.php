@@ -10,19 +10,37 @@
  */
 class Migration_Interface extends Migration {
 	
-	protected function _get_model($model)
+	protected function _model($model)
 	{
+		// If the model is given as a string, instantiate it.
+		if (is_string($model))
+		{
+			$model = Model::factory($model);
+		}
+		
+		// If the model does not implement the migratable interface, this driver can't control it.
+		if ( ! $model instanceof Model_Migratable)
+		{
+			// Throw an error if it doesnt.
+			throw new Kohana_Exception('Model :mdl does not implement the Model_Migratable interface', array(
+				':mdl' => (string)$model
+			));
+		}
+		
+		// Return the model object
 		return $model;
 	}
 	
-	protected function _get_database()
+	protected function _db()
 	{
-		$this->_model->get_database();
+		// Returns the interfaced object's database
+		return $this->_model->db();
 	}
 	
-	protected function _get_tables()
+	protected function _tables()
 	{
-		$this->_model->get_tables();
+		//
+		return $this->_model->migration_tables();
 	}
 	
 } // End Migration_Interface
