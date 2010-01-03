@@ -15,13 +15,13 @@ interface Model_Migratable {
 	 * 
 	 * @return Database
 	 */
-	public function get_database();
+	public function db();
 	
 	/**
 	 * Generates and returns the list of tables to be migrated.
 	 * 
 	 * @return array
 	 */
-	public function get_tables();
+	public function migration_tables();
 	
 } // End Model_Migratable
