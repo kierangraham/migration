@@ -70,11 +70,11 @@ abstract class Migration {
 	 */
 	protected function __construct($model)
 	{
-		$this->_model = $this->_get_model($model);
+		$this->_model = $this->_model($model);
 		
-		$this->_db = $this->_get_database();
+		$this->_db = $this->_db();
 		
-		$this->_tables = $this->_get_tables();
+		$this->_tables = $this->_tables();
 	}
 	
 	/**
@@ -114,6 +114,8 @@ abstract class Migration {
 	 */
 	public function sync( array $options = array())
 	{
+		$sql = '';
+		
 		foreach ($this->_tables as $table)
 		{
 			$tables = $this->_db->list_tables($table->name);
@@ -129,30 +131,43 @@ abstract class Migration {
 			}
 			else
 			{
+				$alter = DB::alter($table->name);
 				$columns = $this->_db->list_columns($table->name);
 				
 				foreach ($table->columns() as $name => $column)
 				{
 					if (isset($columns[$column->name]))
 					{
-						DB::alter($table->name)
-							->modify($column->compile())
-							->execute($this->_db);
+						$alter->modify($column)
+							->compile($this->_db);
 					}
 					else
 					{
-						DB::alter($table->name)
-							->add($column->compile())
+						$alter->add($column)
 							->execute($this->_db);
 					}
 					
 					unset($columns[$name]);
 				}
 				
-				foreach($columns as $name => $column)
+				foreach ($columns as $name => $column)
 				{
-					DB::alter($table->name)
-						->drop($name);
+					$alter->drop($name);
+				}
+				
+				foreach ($table->constraints() as $constraint)
+				{
+					try
+					{
+						$constraint->drop($table->name, $this->_db);
+					}
+					catch (Exception $e) { }
+					
+					try
+					{
+						$alter->add($constraint);
+					}
+					catch (Exception $e) { }
 				}
 			}
 		}

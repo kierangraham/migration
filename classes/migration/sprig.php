@@ -77,7 +77,7 @@ class Migration_Sprig extends Migration {
 					)), $pivot ));
 					
 					$pivot->add_constraint(new Database_Constraint_Primary(
-						array_keys($pivot->columns())
+						array_keys($pivot->columns()), $pivot->name
 					));
 						
 					$tables[] = $pivot;
@@ -86,7 +86,7 @@ class Migration_Sprig extends Migration {
 		}
 		
 		$table->add_constraint(
-			new Database_Constraint_Primary($model_pks)
+			new Database_Constraint_Primary($model_pks, $table->name)
 		);
 		
 		$tables[] = $table;
@@ -103,9 +103,10 @@ class Migration_Sprig extends Migration {
 	 * Gets the database columns associated with the field.
 	 * 
 	 * @param	Sprig_Field	The sprig field.
-	 * @return	array	The list of columns.
+	 * @param	Database_Table	The parent database table.
+	 * @return	array
 	 */
-	private function _get_columns( Sprig_Field $field, Database_Table $table)
+	private function _get_columns(Sprig_Field $field, Database_Table $table)
 	{
 		if ($field instanceof Sprig_Field_BelongsTo)
 		{
