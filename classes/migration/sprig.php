@@ -39,8 +39,7 @@ class Migration_Sprig extends Migration {
 	{
 		$tables = array();
 		
-		$table = new Database_Table($this->_db);
-		$table->name = $this->_model->table();
+		$table = new Database_Table($this->_model->table(), $this->_db);
 		
 		$model_pks = is_array($this->_model->pk()) ? $this->_model->pk() : array($this->_model->pk());
 		
@@ -63,18 +62,27 @@ class Migration_Sprig extends Migration {
 			{
 				if ($field instanceof Sprig_Field_ManyToMany)
 				{
-					$pivot = new Database_Table($this->_db);
-					$pivot->name = $field->through;
-						
-					$pivot->add_column($this->_get_columns(
+					$pivot = new Database_Table($field->through, $this->_db);
+
+					$columns = $this->_get_columns(
 						new Sprig_Field_BelongsTo(array(
 							'model'	=> $field->model
-					)), $pivot ));
+						)), $pivot);
+						
+					foreach ($columns as $column)
+					{
+						$pivot->add_column($column);
+					}
 					
-					$pivot->add_column($this->_get_columns(
+					$columns = $this->_get_columns(
 						new Sprig_Field_BelongsTo(array(
 							'model'	=> inflector::singular($this->_model->table())
-					)), $pivot ));
+						)), $pivot);
+						
+					foreach ($columns as $column)
+					{
+						$pivot->add_column($column);
+					}
 					
 					$pivot->add_constraint(new Database_Constraint_Primary(
 						array_keys($pivot->columns()), $pivot->name
@@ -110,7 +118,7 @@ class Migration_Sprig extends Migration {
 	{
 		if ($field instanceof Sprig_Field_BelongsTo)
 		{
-			$references = $this->_get_model($field->model);
+			$references = $this->_model($field->model);
 			
 			$pks = is_array($references->pk()) ? $references->pk() : array($references->pk());
 			
@@ -138,28 +146,28 @@ class Migration_Sprig extends Migration {
 		{
 			if ($field instanceof Sprig_Field_Text)
 			{
-				$column = Database_Column::factory($table, 'blob', $field->column);
+				$column = Database_Column::factory('blob');
 			}
 			else
 			{
-				$column = Database_Column::factory($table, 'varchar', $field->column);
-				$column->parameters = isset($column->max_length) ? $column->max_length : 45;
+				$column = Database_Column::factory('varchar');
+				$column->max_length = isset($column->max_length) ? $column->max_length : 45;
 			}
 		}
 		elseif ($field instanceof Sprig_Field_Integer)
 		{
-			$column = Database_Column::factory($table, 'int', $field->column);
+			$column = Database_Column::factory('int');
 			
 			$column->is_auto_increment = $field instanceof Sprig_Field_Auto;
 		}
 		elseif ($field instanceof Sprig_Field_Boolean)
 		{
-			$column = Database_Column::factory($table, 'bool', $field->column);
+			$column = Database_Column::factory('bool');
 		}
 		
-		$column->default = $field->default;
-		$column->is_nullable = $field->null;
 		$column->name = $field->column;
+		$column->default = $field->default;
+		$column->nullable = $field->empty;
 		
 		return array($column);
 	}
