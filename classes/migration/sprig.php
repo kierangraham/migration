@@ -17,7 +17,7 @@ class Migration_Sprig extends Migration {
 	 */
 	protected $_model;
 	
-	protected function _get_model($model)
+	protected function _model($model)
 	{
 		if (is_string($model))
 		{
@@ -35,7 +35,7 @@ class Migration_Sprig extends Migration {
 		}
 	}
 	
-	protected function _get_tables()
+	protected function _tables()
 	{
 		$tables = array();
 		
@@ -94,7 +94,7 @@ class Migration_Sprig extends Migration {
 		return $tables;
 	}
 	
-	protected function _get_database()
+	protected function _db()
 	{
 		return Database::instance($this->_model->db());
 	}
