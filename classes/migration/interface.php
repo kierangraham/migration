@@ -33,13 +33,22 @@ class Migration_Interface extends Migration {
 	
 	protected function _db()
 	{
-		// Returns the interfaced object's database
-		return $this->_model->db();
+		// Returns the interfaced object's database.
+		$db = $this->_model->db();
+		
+		// If we're given the database as a string, try and get the instance.
+		if (is_string($db))
+		{
+			$db = Database::instance($db);
+		}
+		
+		// Finally return the database object.
+		return $db;
 	}
 	
 	protected function _tables()
 	{
-		//
+		// Return all the migration tables.
 		return $this->_model->migration_tables();
 	}
 	
