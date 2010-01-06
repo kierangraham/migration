@@ -158,7 +158,7 @@ class Migration_Sprig extends Migration {
 		{
 			$column = Database_Column::factory('int');
 			
-			$column->is_auto_increment = $field instanceof Sprig_Field_Auto;
+			$column->auto_increment = $field instanceof Sprig_Field_Auto;
 		}
 		elseif ($field instanceof Sprig_Field_Boolean)
 		{
