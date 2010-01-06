@@ -134,7 +134,7 @@ class Migration_Sprig extends Migration {
 				
 				if ($column instanceof Database_Column_Int)
 				{
-					$column->is_auto_increment = FALSE;
+					$column->auto_increment = FALSE;
 				}
 				
 				$columns[] = $column;
