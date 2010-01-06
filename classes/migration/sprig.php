@@ -146,7 +146,7 @@ class Migration_Sprig extends Migration {
 		{
 			if ($field instanceof Sprig_Field_Text)
 			{
-				$column = Database_Column::factory('blob');
+				$column = Database_Column::factory('text');
 			}
 			else
 			{
@@ -162,7 +162,7 @@ class Migration_Sprig extends Migration {
 		}
 		elseif ($field instanceof Sprig_Field_Boolean)
 		{
-			$column = Database_Column::factory('bool');
+			$column = Database_Column::factory('tinyint');
 		}
 		
 		$column->name = $field->column;
