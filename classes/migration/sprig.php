@@ -167,7 +167,7 @@ class Migration_Sprig extends Migration {
 		
 		$column->name = $field->column;
 		$column->default = $field->default;
-		$column->nullable = $field->empty;
+		$column->nullable = ! $field->empty;
 		
 		return array($column);
 	}
