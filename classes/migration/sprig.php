@@ -147,6 +147,7 @@ class Migration_Sprig extends Migration {
 			if ($field instanceof Sprig_Field_Text)
 			{
 				$column = Database_Column::factory('text');
+				unset($column->max_length);
 			}
 			else
 			{
