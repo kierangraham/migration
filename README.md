@@ -52,6 +52,34 @@ Note its simply an alias for:
 
 As all methods are chainable.
 
+### Running Migrations Automatically
+
+If during development, you wish to have every model in your application synced when you refresh the page, add the following code to your boostrap (after the modules are loaded):
+
+	// Get a recursive array of every model
+	$models = new RecursiveArrayIterator(Kohana::list_files('classes/model'));
+		
+	// Loop through each model recursively
+	foreach (new RecursiveIteratorIterator($models) as $model => $path)
+	{
+		// Clean up the model name, and make it relative to the model folder
+		$model = trim(str_replace(array('classes/model', EXT), '', $model), DIRECTORY_SEPARATOR);
+			
+		// Replace the directory seperators with underscores
+		$class = str_replace(DIRECTORY_SEPARATOR, '_', $model);
+			
+		// Create a new reflection class of the model
+		$class = new ReflectionClass('model_'.$class);
+			
+		// Check if the class is instantiable
+		if ($class->isInstantiable())
+		{
+				// If it is we can migrate it
+			Migration::factory($model, 'sprig')
+				->sync();
+		}
+	}
+
 ## Creating Drivers
 
 Creating drivers for the migration manager is easy. However you must fit a certain criteria to allow your model engine to be effective.
