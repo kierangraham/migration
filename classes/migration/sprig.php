@@ -116,7 +116,11 @@ class Migration_Sprig extends Migration {
 	 */
 	private function _get_columns(Sprig_Field $field, Database_Table $table)
 	{
-		if ($field instanceof Sprig_Field_BelongsTo)
+		if ($field instanceof Sprig_Field_Migratable)
+		{
+			return $field->columns();
+		}
+		elseif ($field instanceof Sprig_Field_BelongsTo)
 		{
 			$references = $this->_model($field->model);
 			
