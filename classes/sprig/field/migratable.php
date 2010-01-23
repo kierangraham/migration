@@ -4,7 +4,6 @@
  *
  * @package		Migration
  * @author		Oliver Morgan
- * @uses		DBForge
  * @copyright	(c) 2009 Oliver Morgan
  * @license		MIT
  */
