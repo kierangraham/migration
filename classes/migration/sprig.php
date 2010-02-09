@@ -211,7 +211,7 @@ class Migration_Sprig extends Migration {
 				$column = Database_Column::factory('varchar');
 				
 				// Set the varchar's max length to a default of 45
-				$column->max_length = isset($column->max_length) ? $column->max_length : 45;
+				$column->max_length = isset($field->max_length) ? $field->max_length : 64;
 			}
 		}
 		
